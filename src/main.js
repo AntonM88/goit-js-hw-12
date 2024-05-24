@@ -24,10 +24,10 @@ const refs = {
 refs.formEl.addEventListener('submit', handleSubmit);
 refs.btnLoad.addEventListener('click', onLoad);
 
-async function handleSubmit(e) {
+function handleSubmit(e) {
   e.preventDefault();
-
   refs.galleryEl.innerHTML = '';
+  hideBtnLoad();
   userParams.query = e.target.elements.query.value.trim();
   userParams.page = 1;
 
@@ -40,7 +40,7 @@ async function handleSubmit(e) {
     return;
   }
 
-  await renderImg(userParams.query);
+  renderImg(userParams.query);
 
   e.target.reset();
 }
@@ -48,8 +48,9 @@ async function handleSubmit(e) {
 async function renderImg() {
   try {
     const {
-      data: { hits },
+      data: { hits, totalHits },
     } = await fetchImages(userParams.query);
+
     showBtnLoad();
     if (hits.length === 0) {
       hideBtnLoad();
@@ -57,15 +58,18 @@ async function renderImg() {
         'Sorry, there are no images matching your search query. Please try again!',
         'red'
       );
-
       return;
     }
 
     refs.galleryEl.innerHTML = imagesTemplate(hits);
 
-    const liEl = refs.inputEl.firstChild;
-
     lightbox.refresh();
+
+    if (totalHits < userParams.perPage) {
+      hideBtnLoad();
+    } else {
+      showBtnLoad();
+    }
   } catch (error) {
     console.log(error);
   } finally {
@@ -75,10 +79,12 @@ async function renderImg() {
 
 async function onLoad() {
   showLoader();
+
   userParams.page += 1;
+
   try {
     const {
-      data: { hits },
+      data: { hits, totalHits },
     } = await fetchImages();
 
     if (hits.length === 0) {
@@ -92,7 +98,14 @@ async function onLoad() {
       return;
     }
 
+    const lastPage = Math.ceil(totalHits / userParams.perPage);
+
+    if (lastPage === userParams.page) {
+      hideBtnLoad();
+    }
+
     refs.galleryEl.insertAdjacentHTML('beforeend', imagesTemplate(hits));
+
     scrollPage();
 
     lightbox.refresh();
